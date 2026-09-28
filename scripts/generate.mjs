@@ -85,7 +85,7 @@ STORY (the answer/continuation of the hook, first person, spoken aloud):
 1. Brief setup that grounds us fast (who, where, one concrete detail).
 2. Something feels slightly off.
 3. Quiet observation/investigation — tension builds before any confrontation.
-4. Escalating stakes with SPECIFIC details: first names, exact dollar amounts, ages, dates, places, times.
+4. Escalating stakes with vivid, concrete details — first names, places, objects, small actions, a line of dialogue. Use exact figures SPARINGLY: at most 2 numbers in the whole story (one dollar amount OR one date is usually enough, and only where it hits hardest). Prefer natural phrasing ("a few weeks later", "almost ten grand", "last spring") over lists of exact dates and prices.
 5. Confrontation or reveal.
 6. Final line: ${ending}. Never a flat resolution, never a moral lesson, never a question to the audience.
 - Every new detail should recontextualize what we already know; curiosity stacks until the last line.
@@ -139,7 +139,7 @@ async function callGroq(model, messages) {
 
 const EDITOR = `You are a ruthless editor for a viral Reddit-story Shorts channel. Score the draft 1-10.
 A 9-10 feels like a real top Reddit comment: natural hook addressed to the right group, fully plausible real-world logic, specific concrete details, tension that builds, and a final line that lands (twist, irony or payoff).
-Deduct heavily for: implausible/contrived mechanics, a hook whose audience doesn't match the story, forced settings, generic phrasing, rushed or over-explained pacing, flat or moralising endings, a story that doesn't pay off the hook.
+Deduct heavily for: internal contradictions or facts that don't add up (who is older, who adopted whom, timelines, names), implausible/contrived mechanics, a hook whose audience doesn't match the story, forced settings, generic phrasing, rushed or over-explained pacing, flat or moralising endings, a story that doesn't pay off the hook.
 Respond ONLY with JSON: {"score": number, "fixes": "one or two sentences of the most important fixes"}`;
 
 async function critique(model, o) {
@@ -166,6 +166,8 @@ function validate(o) {
   const n = words(o.hook) + words(o.story);
   if (n < MIN_WORDS - 8) problems.push(`too short: ${n} words (need ${MIN_WORDS}-${MAX_WORDS})`);
   if (n > MAX_WORDS + 8) problems.push(`too long: ${n} words (need ${MIN_WORDS}-${MAX_WORDS})`);
+  const figures = (o.story.match(/\$\s?\d[\d,.]*|\b\d[\d,.:/]*\b/g) || []).length;
+  if (figures > 3) problems.push(`too many exact figures (${figures}) — keep at most 2 numbers/dates, use natural phrasing for the rest`);
   if (hookStyle === "question" && !o.hook.trim().endsWith("?")) problems.push("hook must be a direct question ending with ?");
   return problems;
 }
