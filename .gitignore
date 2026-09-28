@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build / render output
+out/
+build/
+.remotion/
+
+# Per-run downloaded & generated assets (footage, voice, captions) — never committed (A12)
+public/run/
+downloads/
+footage/
+*.mp4
+*.mov
+*.webm
+
+# Credentials — NEVER commit (A5: CI reads these from GitHub Secrets)
+client_secret.json
+client_secret*.json
+token.json
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+public/test/

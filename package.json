@@ -1,0 +1,31 @@
+{
+  "name": "redditswan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RedditSwan — automated Reddit-story YouTube Shorts pipeline",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "generate": "node scripts/generate.mjs",
+    "footage": "node scripts/footage.mjs",
+    "render": "node scripts/render.mjs",
+    "upload": "node scripts/upload.mjs",
+    "auth": "node scripts/auth.mjs",
+    "pipeline": "node scripts/pipeline.mjs"
+  },
+  "dependencies": {
+    "@fontsource/arimo": "^5.3.0",
+    "@fontsource/montserrat": "5.3.0",
+    "@remotion/bundler": "4.0.529",
+    "@remotion/captions": "4.0.529",
+    "@remotion/cli": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.3"
+  }
+}
