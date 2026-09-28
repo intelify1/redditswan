@@ -61,6 +61,9 @@ const mode = pick(MODES.filter((m) => !recentModes.includes(m.split(":")[0])));
 const arena = pick(ARENAS);
 const ending = pick(ENDINGS);
 const hookStyle = Math.random() < 0.65 ? "question" : "confession";
+// Narrator gender decided up front (≈50/50) so the story is written for it and tts.py picks the
+// matching voice (male: Andrew, female: Ava).
+const narrator = Math.random() < 0.5 ? "female" : "male";
 
 const HOOK_RULES =
   hookStyle === "question"
@@ -140,6 +143,7 @@ function validate(o) {
 const recent = state.recentTopics.slice(0, 20);
 const userMsg =
   `Write one new story.\nStory type: ${mode}\nSetting: ${arena}\n` +
+  `Narrator: a ${narrator === "female" ? "woman" : "man"} telling her/his own story in first person — details (relationships, pronouns others use for the narrator) must fit a ${narrator} narrator.\n` +
   (recent.length
     ? `Do NOT reuse or closely resemble any of these recent premises:\n- ${recent.join("\n- ")}\n`
     : "") +
@@ -209,6 +213,7 @@ const content = {
   arena,
   mode: mode.split(":")[0],
   hookStyle,
+  narrator,
   model: result.model,
   wordCount: words(hook) + words(story),
   createdAt: new Date().toISOString(),
@@ -219,5 +224,5 @@ state.recentTopics = [content.topic, ...state.recentTopics].slice(0, 20);
 state.recentModes = [content.mode, ...state.recentModes].slice(0, 10);
 writeFileSync(STATE, JSON.stringify(state, null, 2) + "\n");
 
-console.log(`[generate] ${content.model} · ${content.wordCount} words · "${content.title}"`);
+console.log(`[generate] ${content.model} · ${content.narrator} narrator · ${content.wordCount} words · "${content.title}"`);
 console.log(`[generate] hook: ${hook}`);

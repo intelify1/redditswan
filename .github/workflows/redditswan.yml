@@ -31,6 +31,7 @@ jobs:
       YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
       YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
       TTS_VOICE: ${{ vars.TTS_VOICE }}
+      TTS_VOICE_FEMALE: ${{ vars.TTS_VOICE_FEMALE }}
       WHISPER_MODEL: small.en
       # cron-job.org dispatches carry no inputs → default to uploading.
       UPLOAD_DRY_RUN: ${{ github.event.inputs.upload == 'false' && '1' || '0' }}

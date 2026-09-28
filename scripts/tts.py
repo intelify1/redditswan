@@ -28,7 +28,8 @@ RUN = ROOT / "public" / "run"
 OUT.mkdir(parents=True, exist_ok=True)  # A4
 RUN.mkdir(parents=True, exist_ok=True)
 
-VOICE = os.environ.get("TTS_VOICE") or "en-US-AndrewNeural"
+VOICE = os.environ.get("TTS_VOICE") or "en-US-AndrewNeural"  # male narrator (user pick)
+VOICE_FEMALE = os.environ.get("TTS_VOICE_FEMALE") or "en-US-AvaNeural"  # female narrator
 RATE = os.environ.get("TTS_RATE") or "+8%"
 TARGET_MIN_MS, TARGET_MAX_MS = 45000, 55000  # user target: 45-55 s videos
 RATE_MIN, RATE_MAX = 0, 22  # never slow below natural, never chipmunk
@@ -61,11 +62,11 @@ def run(cmd):
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
 
-async def build(content, rate: str):
+async def build(content, rate: str, voice_name: str):
     hook_mp3 = OUT / "hook.mp3"
     story_mp3 = OUT / "story.mp3"
-    await synth(content["hook"], hook_mp3, rate=rate)
-    await synth(content["story"], story_mp3, rate=rate)
+    await synth(content["hook"], hook_mp3, voice=voice_name, rate=rate)
+    await synth(content["story"], story_mp3, voice=voice_name, rate=rate)
 
     # Normalise to WAV; trim the hook's trailing silence so the hard cut lands right on the last word.
     hook_wav, story_wav, gap_wav = OUT / "hook.wav", OUT / "story.wav", OUT / "gap.wav"
@@ -84,7 +85,7 @@ async def build(content, rate: str):
         "hookEndMs": hook_ms,
         "storyOffsetMs": hook_ms + GAP_MS,
         "durationMs": duration_ms(voice),
-        "voice": VOICE,
+        "voice": voice_name,
         "rate": rate,
     }
 
@@ -95,7 +96,9 @@ def pct(rate: str) -> int:
 
 async def main_story():
     content = json.loads((OUT / "content.json").read_text(encoding="utf-8"))
-    meta = await build(content, RATE)
+    # Match the narrator's gender to the story's first-person narrator.
+    voice_name = VOICE_FEMALE if content.get("narrator") == "female" else VOICE
+    meta = await build(content, RATE, voice_name)
     d = meta["durationMs"]
     if not (TARGET_MIN_MS <= d <= TARGET_MAX_MS):
         # Fit into 45-55 s by nudging the speaking rate (aim for the middle, 50 s).
@@ -105,9 +108,9 @@ async def main_story():
         if new_pct != pct(RATE):
             new_rate = f"{new_pct:+d}%"
             print(f"[tts] {d/1000:.1f}s is outside 45-55s, re-voicing at {new_rate}", flush=True)
-            meta = await build(content, new_rate)
+            meta = await build(content, new_rate, voice_name)
     (OUT / "tts.json").write_text(json.dumps(meta, indent=2))
-    print(f"[tts] {VOICE} {meta['rate']}: hook {meta['hookEndMs']}ms, total {meta['durationMs']/1000:.1f}s", flush=True)
+    print(f"[tts] {meta['voice']} ({content.get('narrator', 'male')} narrator) {meta['rate']}: hook {meta['hookEndMs']}ms, total {meta['durationMs']/1000:.1f}s", flush=True)
 
 
 SAMPLE_TEXT = (
@@ -121,7 +124,10 @@ SAMPLE_TEXT = (
 async def main_samples():
     dest = OUT / "samples"
     dest.mkdir(parents=True, exist_ok=True)
-    voices = ["en-US-AndrewNeural", "en-US-ChristopherNeural", "en-US-BrianNeural", "en-US-GuyNeural"]
+    if "--female" in sys.argv:
+        voices = ["en-US-AvaNeural", "en-US-EmmaNeural", "en-US-JennyNeural", "en-US-AriaNeural"]
+    else:
+        voices = ["en-US-AndrewNeural", "en-US-ChristopherNeural", "en-US-BrianNeural", "en-US-GuyNeural"]
     for v in voices:
         for rate in ["+8%"]:
             p = dest / f"{v.replace('en-US-', '').replace('Neural', '')}_{rate.replace('+', 'plus').replace('%', 'pct')}.mp3"
