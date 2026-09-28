@@ -3,43 +3,37 @@ import { createTikTokStyleCaptions, type Caption, type TikTokPage } from "@remot
 import { AbsoluteFill, Sequence, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { CAPTION_FONT } from "./fonts";
 
-// How close together words must be to share one on-screen "page" (multi-word highlight style).
-const COMBINE_MS = 800;
-const HIGHLIGHT = "#FFD60A";
+// ONE WORD AT A TIME (user feedback): white bold text, heavy black stroke, small pop per word.
+// combineTokensWithinMilliseconds = 0 → every whisper word becomes its own caption page.
+const COMBINE_MS = 0;
 
-const Page: React.FC<{ page: TikTokPage }> = ({ page }) => {
+const Word: React.FC<{ page: TikTokPage }> = ({ page }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const nowMs = page.startMs + (frame / fps) * 1000;
-
-  const pop = spring({ frame, fps, config: { damping: 12, stiffness: 260, mass: 0.5 } });
-  const scale = 0.8 + 0.2 * pop;
+  const pop = spring({ frame, fps, config: { damping: 12, stiffness: 420, mass: 0.35 } });
+  const scale = 0.82 + 0.18 * pop;
+  const text = page.text.trim();
+  const fontSize = text.length > 11 ? 112 : text.length > 8 ? 128 : 142;
 
   return (
-    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "0 70px" }}>
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "0 60px" }}>
       <div
         style={{
           fontFamily: CAPTION_FONT,
           fontWeight: 900,
-          fontSize: 104,
-          lineHeight: 1.12,
+          fontSize,
+          lineHeight: 1,
           textAlign: "center",
           textTransform: "uppercase",
+          color: "#FFFFFF",
           transform: `scale(${scale})`,
-          whiteSpace: "pre-wrap",
-          WebkitTextStroke: "14px #000",
+          WebkitTextStroke: "22px #000",
           paintOrder: "stroke fill",
-          textShadow: "0 8px 22px rgba(0,0,0,0.55)",
+          textShadow: "0 6px 0 #000, 0 10px 24px rgba(0,0,0,0.6)",
+          whiteSpace: "nowrap",
         }}
       >
-        {page.tokens.map((t) => {
-          const active = t.fromMs <= nowMs && t.toMs > nowMs;
-          return (
-            <span key={t.fromMs} style={{ color: active ? HIGHLIGHT : "#FFFFFF" }}>
-              {t.text}
-            </span>
-          );
-        })}
+        {text}
       </div>
     </AbsoluteFill>
   );
@@ -64,12 +58,14 @@ export const Captions: React.FC<{ captions: Caption[]; offsetMs: number }> = ({
     <AbsoluteFill>
       {pages.map((page, i) => {
         const next = pages[i + 1];
-        const startFrame = Math.round(((page.startMs - offsetMs) / 1000) * fps);
+        // Each word stays on screen until the next one starts (no flicker in short pauses).
         const endMs = next ? next.startMs : page.startMs + page.durationMs + 400;
-        const dur = Math.max(1, Math.round(((endMs - page.startMs) / 1000) * fps));
+        const startFrame = Math.max(0, Math.round(((page.startMs - offsetMs) / 1000) * fps));
+        const endFrame = Math.round(((endMs - offsetMs) / 1000) * fps);
+        const dur = Math.max(1, endFrame - startFrame);
         return (
           <Sequence key={i} from={startFrame} durationInFrames={dur} layout="none">
-            <Page page={page} />
+            <Word page={page} />
           </Sequence>
         );
       })}

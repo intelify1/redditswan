@@ -30,9 +30,9 @@ RUN.mkdir(parents=True, exist_ok=True)
 
 VOICE = os.environ.get("TTS_VOICE") or "en-US-AndrewNeural"  # male narrator (user pick)
 VOICE_FEMALE = os.environ.get("TTS_VOICE_FEMALE") or "en-US-AvaNeural"  # female narrator
-RATE = os.environ.get("TTS_RATE") or "+8%"
+RATE = os.environ.get("TTS_RATE") or "+16%"  # user: ~8% faster than the first test
 TARGET_MIN_MS, TARGET_MAX_MS = 45000, 55000  # user target: 45-55 s videos
-RATE_MIN, RATE_MAX = 0, 22  # never slow below natural, never chipmunk
+RATE_MIN, RATE_MAX = 12, 24  # never slow below natural, never chipmunk
 GAP_MS = 250  # breath between hook and story
 
 
