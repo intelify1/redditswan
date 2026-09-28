@@ -1,22 +1,21 @@
 import React, { useMemo } from "react";
 import { createTikTokStyleCaptions, type Caption, type TikTokPage } from "@remotion/captions";
-import { AbsoluteFill, Sequence, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CAPTION_FONT } from "./fonts";
 
 // ONE WORD AT A TIME (user feedback): white bold text, heavy black stroke, small pop per word.
-// combineTokensWithinMilliseconds = 0 → every whisper word becomes its own caption page.
-const COMBINE_MS = 0;
+// combineTokensWithinMilliseconds = -1 → every word is its own page, even zero-length words.
+const COMBINE_MS = -1;
 
 const Word: React.FC<{ page: TikTokPage }> = ({ page }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const pop = spring({ frame, fps, config: { damping: 12, stiffness: 420, mass: 0.35 } });
-  const scale = 0.82 + 0.18 * pop;
+  // Snap pop: full size within 2 frames with a tiny overshoot.
+  const scale = interpolate(frame, [0, 1, 2, 3], [0.7, 1.08, 1.0, 1.0], { extrapolateRight: "clamp" });
   const text = page.text.trim();
-  const fontSize = text.length > 11 ? 112 : text.length > 8 ? 128 : 142;
+  const fontSize = text.length > 12 ? 76 : text.length > 9 ? 86 : 96;
 
   return (
-    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "0 60px" }}>
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "320px 60px 0" }}>
       <div
         style={{
           fontFamily: CAPTION_FONT,
@@ -27,9 +26,9 @@ const Word: React.FC<{ page: TikTokPage }> = ({ page }) => {
           textTransform: "uppercase",
           color: "#FFFFFF",
           transform: `scale(${scale})`,
-          WebkitTextStroke: "22px #000",
+          WebkitTextStroke: "16px #000",
           paintOrder: "stroke fill",
-          textShadow: "0 6px 0 #000, 0 10px 24px rgba(0,0,0,0.6)",
+          textShadow: "0 5px 0 #000, 0 8px 18px rgba(0,0,0,0.6)",
           whiteSpace: "nowrap",
         }}
       >

@@ -21,7 +21,7 @@ const FOLDER = process.env.DRIVE_FOLDER_ID;
 if (!KEY) throw new Error("DRIVE_API_KEY is not set");
 if (!FOLDER) throw new Error("DRIVE_FOLDER_ID is not set");
 
-const SPEED = Number(process.env.BG_SPEED || 1.15); // "slightly sped up to match the sped-up VO"
+const SPEED = Number(process.env.BG_SPEED || 1.3); // "slightly sped up to match the sped-up VO"
 
 async function driveList(folderId) {
   const files = [];

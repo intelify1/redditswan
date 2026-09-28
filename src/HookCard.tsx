@@ -1,5 +1,5 @@
 import React from "react";
-import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { CARD_FONT } from "./fonts";
 import { AwardRow } from "./Awards";
 
@@ -63,12 +63,12 @@ export const HookCard: React.FC<{
   avatarSrc: string;
 }> = ({ username, hook, upvotes, comments, avatarSrc }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  // FAST pop-in (~5 frames, slight overshoot) synced with the whoosh.
+  // SNAP pop-in: fully on screen within 3 frames (0.1 s) with a tiny overshoot, synced with the whoosh.
   // Exit is a HARD CUT (parent Sequence ends) — no fade.
-  const s = spring({ frame, fps, config: { damping: 14, stiffness: 520, mass: 0.35 } });
-  const scale = interpolate(s, [0, 1], [0.45, 1]);
+  const scale = interpolate(frame, [0, 1, 2, 3, 4], [0.72, 0.97, 1.05, 1.0, 1.0], {
+    extrapolateRight: "clamp",
+  });
 
   // Long hooks shrink a touch so the card never gets too tall.
   const hookFont = hook.length > 120 ? 16 : hook.length > 80 ? 17 : 18.5;

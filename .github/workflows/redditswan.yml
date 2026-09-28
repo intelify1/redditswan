@@ -97,6 +97,8 @@ jobs:
             out/video-*.json
             out/content.json
             out/tts.json
+            out/captions.json
+            out/props.json
             out/upload-result.json
           retention-days: 3
           if-no-files-found: ignore

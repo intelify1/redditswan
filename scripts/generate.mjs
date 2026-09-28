@@ -17,10 +17,10 @@ if (!KEY) throw new Error("GROQ_API_KEY is not set");
 // Override with the GROQ_MODEL env var / repo variable if Groq changes tiers again.
 const MODELS = [process.env.GROQ_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b"].filter(Boolean);
 
-// Duration target (user, 2026-09-27): 45-55 s. edge-tts at ~+8% speaks ~160-170 wpm,
-// so hook + story ≈ 125-150 words. tts.py fine-tunes the rate to land inside the window.
-const MIN_WORDS = 122;
-const MAX_WORDS = 150;
+// Duration target (user): 45-55 s with a FAST narrator (~+45%, ≈235 wpm) → hook + story ≈ 180-210 words.
+// tts.py fine-tunes the rate to land inside the window.
+const MIN_WORDS = 180;
+const MAX_WORDS = 210;
 const CONSTANT_TAGS = ["#redditstories", "#shorts", "#storytime", "#askreddit", "#viral"];
 
 const state = existsSync(STATE)
@@ -58,7 +58,10 @@ const ENDINGS = [
 ];
 const recentModes = state.recentModes.slice(0, 4);
 const mode = pick(MODES.filter((m) => !recentModes.includes(m.split(":")[0])));
-const arena = pick(ARENAS);
+// Three setting ideas; the writer picks whichever fits the story type NATURALLY (forcing one
+// produced absurd mash-ups like "inheritance theft during a workout").
+const arenaIdeas = [...ARENAS].sort(() => Math.random() - 0.5).slice(0, 3);
+let arena = arenaIdeas.join(" / ");
 const ending = pick(ENDINGS);
 const hookStyle = Math.random() < 0.65 ? "question" : "confession";
 // Narrator gender decided up front (≈50/50) so the story is written for it and tts.py picks the
@@ -90,7 +93,15 @@ STORY (the answer/continuation of the hook, first person, spoken aloud):
 - Natural spoken storytelling: short and medium sentences, a little dialogue in quotes, conversational rhythm — not rushed, not over-explained, no filler.
 - No emojis, hashtags, headings, "Edit:", "Update:", or "TL;DR".
 
-LENGTH: hook + story together = ${MIN_WORDS}-${MAX_WORDS} words (aim ~138). This is a 45-55 second video; do not exceed ${MAX_WORDS}.
+REALISM (critical): it must feel like something that genuinely happened to a real person. Real-world logic only: money, wills, jobs, laws and family dynamics work the way they do in real life. No contrived clauses, no cartoon villains announcing their plan, no coincidences doing the heavy lifting. People react like real people.
+The hook's audience must be the NATURAL group for this story (a will story → "People who got cut out of a will…", not "Gym regulars…"). The setting must come from the story, not be bolted on.
+Vary the opening line — don't start with "I was…" or "So…" every time; open on a concrete moment.
+
+QUALITY REFERENCE (tone, pacing and specificity only — never reuse this premise, names or twist):
+Hook: "People who found out a family secret from a stranger, how did it happen?"
+Story: "My dad died in March, and at the funeral a woman I'd never met hugged me way too long. She said, 'You have his hands.' I figured she was an old coworker. Two weeks later I'm closing his bank account, and the teller asks if I want to keep the automatic transfer going. Four hundred dollars, on the first of every month, for nineteen years. To a Linda Walsh in Tucson. My mom had never heard the name. So I drove six hours to the address on the statement. The woman from the funeral opened the door. Behind her, on the fridge, was a graduation photo of a guy who looked exactly like me. She didn't even try to explain. She just said, 'He kept saying he'd tell you next Christmas.' I'm meeting my brother on Saturday. He still thinks our dad was a pilot who died in 2006."
+
+LENGTH: hook + story together = ${MIN_WORDS}-${MAX_WORDS} words (aim ~195). This is a 45-55 second video; do not exceed ${MAX_WORDS}.
 
 METADATA:
 - title: a clickable Shorts title (max 80 chars) for THIS story; curiosity-driven, not a template, no hashtags, not identical to the hook.
@@ -126,6 +137,25 @@ async function callGroq(model, messages) {
   return data.choices[0].message.content;
 }
 
+const EDITOR = `You are a ruthless editor for a viral Reddit-story Shorts channel. Score the draft 1-10.
+A 9-10 feels like a real top Reddit comment: natural hook addressed to the right group, fully plausible real-world logic, specific concrete details, tension that builds, and a final line that lands (twist, irony or payoff).
+Deduct heavily for: implausible/contrived mechanics, a hook whose audience doesn't match the story, forced settings, generic phrasing, rushed or over-explained pacing, flat or moralising endings, a story that doesn't pay off the hook.
+Respond ONLY with JSON: {"score": number, "fixes": "one or two sentences of the most important fixes"}`;
+
+async function critique(model, o) {
+  try {
+    const raw = await callGroq(model, [
+      { role: "system", content: EDITOR },
+      { role: "user", content: `HOOK: ${o.hook}\nSTORY: ${o.story}` },
+    ]);
+    const r = JSON.parse(raw.replace(/^```(json)?|```$/g, "").trim());
+    return typeof r.score === "number" ? r : null;
+  } catch (e) {
+    console.warn(`[generate] editor pass skipped: ${e.message}`);
+    return null;
+  }
+}
+
 function validate(o) {
   const problems = [];
   for (const k of ["hook", "story", "title", "topic"]) {
@@ -142,7 +172,7 @@ function validate(o) {
 
 const recent = state.recentTopics.slice(0, 20);
 const userMsg =
-  `Write one new story.\nStory type: ${mode}\nSetting: ${arena}\n` +
+  `Write one new story.\nStory type: ${mode}\nSetting ideas (use one only if it fits naturally, otherwise choose the most natural setting yourself): ${arena}\n` +
   `Narrator: a ${narrator === "female" ? "woman" : "man"} telling her/his own story in first person — details (relationships, pronouns others use for the narrator) must fit a ${narrator} narrator.\n` +
   (recent.length
     ? `Do NOT reuse or closely resemble any of these recent premises:\n- ${recent.join("\n- ")}\n`
@@ -178,8 +208,19 @@ outer: for (const model of MODELS) {
     }
     const problems = validate(obj);
     if (problems.length === 0) {
-      result = { ...obj, model };
-      break outer;
+      // Quality gate: a separate "editor" pass scores the story; weak drafts get rewritten.
+      const review = attempt < 3 ? await critique(model, obj) : null;
+      if (!review || review.score >= 8) {
+        if (review) console.log(`[generate] editor score ${review.score}/10`);
+        result = { ...obj, model, editorScore: review?.score ?? null };
+        break outer;
+      }
+      console.warn(`[generate] editor score ${review.score}/10 — rewriting: ${review.fixes}`);
+      messages.push(
+        { role: "assistant", content: raw },
+        { role: "user", content: `An editor rated this ${review.score}/10. Rewrite it (new JSON, same rules) fixing: ${review.fixes}` },
+      );
+      continue;
     }
     console.warn(`[generate] attempt ${attempt} (${model}) rejected: ${problems.join("; ")}`);
     messages.push(
@@ -210,7 +251,8 @@ const content = {
   tags: allTags.map((t) => t.slice(1)),
   hashtags: allTags,
   topic: result.topic.trim(),
-  arena,
+  arenaIdeas: arena,
+  editorScore: result.editorScore,
   mode: mode.split(":")[0],
   hookStyle,
   narrator,
