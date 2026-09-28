@@ -9,7 +9,7 @@ import { AwardRow } from "./Awards";
 // FIXED every video: layout, size, position, colors, border, icons, font, avatar, channel name.
 // DYNAMIC every video: hook text (+ engagement numbers if provided).
 
-const S = 1080 / 480; // reference was measured on a ~480px-wide player
+const S = (1080 / 480) * 1.1; // reference measured on a ~480px player; +10% bigger per user feedback
 
 const VerifiedBadge: React.FC<{ size: number }> = ({ size }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -65,9 +65,10 @@ export const HookCard: React.FC<{
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Quick pop-in synced with the whoosh. Exit is a HARD CUT (parent Sequence ends) — no fade.
-  const s = spring({ frame, fps, config: { damping: 14, stiffness: 200, mass: 0.6 } });
-  const scale = interpolate(s, [0, 1], [0.85, 1]);
+  // FAST pop-in (~5 frames, slight overshoot) synced with the whoosh.
+  // Exit is a HARD CUT (parent Sequence ends) — no fade.
+  const s = spring({ frame, fps, config: { damping: 14, stiffness: 520, mass: 0.35 } });
+  const scale = interpolate(s, [0, 1], [0.45, 1]);
 
   // Long hooks shrink a touch so the card never gets too tall.
   const hookFont = hook.length > 120 ? 16 : hook.length > 80 ? 17 : 18.5;
@@ -80,6 +81,7 @@ export const HookCard: React.FC<{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        paddingTop: 300, // sits a little below centre
       }}
     >
       <div
